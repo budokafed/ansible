@@ -1,0 +1,23 @@
+---
+- name: Create a data container
+  hosts: localhost
+  tasks:
+
+  - name: Create a network
+    docker_network:
+      name: Network_jenkins
+      ipam_config:
+        - subnet: 172.4.27.0/24
+
+  - name: lancer container 
+    docker_container:
+      name: jenkins
+      image: ubuntu:1.0
+      recreate: yes
+      state: started
+      tty: true
+      detach: true
+                    
+      networks:
+        - name: Network_jenkins
+          ipv4_address: 172.4.27.2
