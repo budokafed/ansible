@@ -2,13 +2,17 @@
 - name: Create a data container
   hosts: localhost
   tasks:
-
   - name: Create a network
     docker_network:
-      name: Network_jenkins
-      ipam_config:
-        - subnet: 172.4.27.0/24
-
+        name: Network_jenkins
+        ipam_config:
+          - subnet: 172.4.27.0/24
+  - name: add ip
+    add_host:
+      hostname: '172.4.27.2'
+      groups:
+        - essai
+ 
   - name: lancer container 
     docker_container:
       name: jenkins
@@ -17,7 +21,54 @@
       state: started
       tty: true
       detach: true
-                    
+      ports:
+        - "8083:8080"              
       networks:
         - name: Network_jenkins
           ipv4_address: 172.4.27.2
+
+ #- name: TASKS- installer Jenkins 
+- hosts: 172.4.27.2
+#  ansible_user_ssh= root:
+  tasks:
+  - name: update cache 
+    apt:
+      update_cache: yes
+  - name: installation de gnupg
+    apt:
+      name: gnupg
+      state: present
+  - name: installer jenkins
+    apt_key:
+       url: https://pkg.jenkins.io/debian/jenkins.io.key
+       state: present
+  - name: repository
+    apt_repository:
+       repo: deb https://pkg.jenkins.io/debian binary/ 
+       state: present
+  - name: installation en cours
+    apt:
+       name: jenkins
+       state: present
+  - name: start jenkins
+    systemd:
+      name: jenkins
+      state: started
+
+  - name: enable jenkins
+    systemd:
+      name: jenkins
+      enabled: true
+
+  - name: sleep for 30 seconds and continue with play
+    wait_for: timeout=30
+    delegate_to: localhost
+
+  - name: init password jenkin
+    shell: cat /var/lib/jenkins/secrets/initialAdminPassword
+    changed_when: false
+    register: result
+
+  - name: print init password jenkins
+    debug:
+      var: result.stdout

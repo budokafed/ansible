@@ -1,0 +1,7 @@
+---
+- name: Installation Jenkins 
+  hosts: 172.4.27.2
+  tasks:
+   - name: update cahe 
+     apt:
+       update_cache: yes 
