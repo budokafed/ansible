@@ -2,11 +2,16 @@
 - name: Create a data container
   hosts: localhost
   tasks:
+  - name: si le container_exist
+    docker_container_info:
+      name: jenkins
+    register: jenkins
   - name: Create a network
     docker_network:
         name: Network_jenkins
         ipam_config:
           - subnet: 172.4.27.0/24
+    when: jenkins.exists  == false 
   - name: add ip
     add_host:
       hostname: '172.4.27.2'
@@ -17,7 +22,7 @@
     docker_container:
       name: jenkins
       image: ubuntu:1.0
-      recreate: yes
+      #recreate: yes
       state: started
       tty: true
       detach: true
@@ -25,10 +30,11 @@
         - "8083:8080"              
       volumes:
         - /jenkins/data:/var/jenkins_home
+        - /jenkins/var:/var/lib/jenkins
       networks:
         - name: Network_jenkins
           ipv4_address: 172.4.27.2
-
+    when: jenkins.exists  == false
  #- name: TASKS- installer Jenkins 
 - hosts: 172.4.27.2
 #  ansible_user_ssh= root:
@@ -44,18 +50,31 @@
     apt:
       name: default-jre
       state: present 
+  - name: check if jenkins exist
+    service_facts:
+  - debug:
+      var: ansible_facts.services
+ 
   - name: installer jenkins
     apt_key:
        url: https://pkg.jenkins.io/debian/jenkins.io.key
        state: present
+    when: ansible_facts.services["jenkins"] is not defined
   - name: repository
     apt_repository:
        repo: deb https://pkg.jenkins.io/debian binary/ 
        state: present
+    when: ansible_facts.services["jenkins"] is not defined   
   - name: installation en cours
     apt:
        name: jenkins
        state: present
+    when: ansible_facts.services["jenkins"] is not defined   
+  - name: modification de la memoire 
+    lineinfile:
+      path: /etc/default/jenkins
+      line: JAVA_ARGS="-Xmx256m"
+      create: yes 
   - name: start jenkins
     service:
       name: jenkins
@@ -69,12 +88,13 @@
   - name: sleep for 300 seconds and continue with play
     wait_for: timeout=300
     delegate_to: localhost
-
+    when: ansible_facts.services["jenkins"] is not defined   
   - name: init password jenkin
     shell: cat /var/lib/jenkins/secrets/initialAdminPassword
     changed_when: false
     register: result
-
+    when: ansible_facts.services["jenkins"] is not defined
   - name: print init password jenkins
     debug:
       var: result.stdout
+    when: ansible_facts.services["jenkins"] is not defined
